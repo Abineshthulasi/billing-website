@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Simple Billing / Invoice</title>
+  <title>Billing / Invoice</title>
   <style>
     :root{--bg:#f7fafc;--card:#fff;--accent:#0ea5a4;--muted:#6b7280}
     *{box-sizing:border-box;font-family:Inter,ui-sans-serif,system-ui,Arial}
@@ -12,17 +12,14 @@
     .container{max-width:1100px;margin:18px auto;padding:12px}
     .grid{display:grid;grid-template-columns:1fr 420px;gap:16px}
     .card{background:var(--card);border-radius:10px;padding:14px;box-shadow:0 6px 18px rgba(2,6,23,0.06)}
-    h2{margin:0 0 10px 0}
     label{display:block;margin:8px 0 4px;font-size:13px;color:var(--muted)}
     input[type="text"],input[type="number"],select,textarea{width:100%;padding:8px;border:1px solid #e6e9ef;border-radius:6px}
     table{width:100%;border-collapse:collapse}
     th,td{padding:8px;border-bottom:1px dashed #eef2f7;text-align:left}
     .btn{display:inline-block;padding:8px 12px;border-radius:8px;border:0;background:var(--accent);color:white;cursor:pointer}
     .muted{color:var(--muted);font-size:13px}
-    .actions{display:flex;gap:8px;flex-wrap:wrap}
     .invoice{padding:18px}
     .row{display:flex;gap:8px}
-    .flex{display:flex;gap:8px}
     .right{text-align:right}
     .small{font-size:13px;color:var(--muted)}
     .product-list{max-height:220px;overflow:auto}
@@ -32,8 +29,8 @@
 <body>
   <header>
     <div class="container">
-      <h1 style="margin:0;font-size:20px">Billing / Invoice Generator (Single file)</h1>
-      <div class="small">Add products, set tax/discount, accept advance payments — save invoice history by mobile & invoice number.</div>
+      <h1 style="margin:0;font-size:20px">Billing / Invoice Generator</h1>
+      <div class="small">Saves locally + to Google Sheet (public) — replace SERVER_URL and SERVER_SECRET below.</div>
     </div>
   </header>
 
@@ -79,6 +76,7 @@
         <div style="margin-top:12px;display:flex;gap:8px">
           <button class="btn" onclick="saveInvoice()">Save Invoice</button>
           <button class="btn" onclick="openHistory()">Open History</button>
+          <button class="btn" onclick="showServerHistory()">Public Invoices</button>
         </div>
 
       </div>
@@ -88,8 +86,8 @@
         <div class="invoice" id="invoicePreview">
           <div style="display:flex;justify-content:space-between;align-items:center">
             <div>
-              <h3 style="margin:0">Bobiz Designer Studio</h3>
-              <div class="small">Contact<br/>6384893897</div>
+              <h3 style="margin:0">Your Shop Name</h3>
+              <div class="small">Address line 1<br/>City, State</div>
             </div>
             <div class="right small">
               <div>Invoice: <strong id="previewInv"></strong></div>
@@ -131,7 +129,7 @@
     </div>
   </div>
 
-  <!-- Hidden add product modal (simple) -->
+  <!-- Add product modal -->
   <div id="modal" style="position:fixed;inset:0;background:rgba(2,6,23,0.45);display:none;align-items:center;justify-content:center">
     <div style="width:420px;background:white;border-radius:10px;padding:16px">
       <h3 style="margin-top:0">Add Product</h3>
@@ -149,7 +147,7 @@
   <div id="historyModal" style="position:fixed;inset:0;background:rgba(2,6,23,0.45);display:none;align-items:flex-start;justify-content:center;padding-top:40px;overflow:auto">
     <div style="width:920px;max-width:96%;background:white;border-radius:10px;padding:16px">
       <div style="display:flex;justify-content:space-between;align-items:center">
-        <h3 style="margin:0">Invoice History</h3>
+        <h3 style="margin:0">Invoice History (Local)</h3>
         <div><button class="btn" onclick="closeHistory()">Close</button></div>
       </div>
 
@@ -166,7 +164,11 @@
   </div>
 
 <script>
-// Simple single-file billing app with advance payment, local storage history, and customer mobile lookup
+/* ========== CONFIG — REPLACE THESE ========== */
+const SERVER_URL = 'PUT_YOUR_WEB_APP_URL_HERE'; // e.g. https://script.google.com/macros/s/ABC123/exec
+const SERVER_SECRET = 'PUT_SAME_SECRET_AS_APPS_SCRIPT_HERE';
+/* ============================================ */
+
 let products = [
   {id:1,name:'Product A',price:199.00,sku:'A001'},
   {id:2,name:'Product B',price:349.00,sku:'B001'},
@@ -177,6 +179,7 @@ let settings = {discount:0,discountType:'flat',tax:0,advance:0};
 
 function $(id){return document.getElementById(id)}
 
+/* ---------------- rendering ---------------- */
 function renderCatalog(filter=''){
   const el = $('productCatalog');el.innerHTML='';
   const list = products.filter(p=>p.name.toLowerCase().includes(filter.toLowerCase())|| (p.sku||'').toLowerCase().includes(filter.toLowerCase()));
@@ -198,6 +201,7 @@ function renderCart(){
   renderPreview();
 }
 
+/* ---------------- cart operations -------------- */
 function addToCart(id){
   const p = products.find(x=>x.id===id); if(!p) return;
   const existing = cart.find(x=>x.id===id);
@@ -208,6 +212,7 @@ function updateQty(i,val){ cart[i].qty = Math.max(1, Number(val)); renderCart();
 function removeItem(i){ cart.splice(i,1); renderCart(); }
 function clearCart(){ cart=[]; renderCart(); }
 
+/* ---------------- totals & preview -------------- */
 function computeTotals(){
   let subtotal = 0;
   cart.forEach(it=> subtotal += it.price*it.qty);
@@ -245,6 +250,7 @@ function renderPreview(){
   $('balanceVal').innerText = '₹ '+t.balance.toFixed(2);
 }
 
+/* ---------------- modal product ---------------- */
 function showAddProduct(){ $('modal').style.display='flex'; }
 function closeModal(){ $('modal').style.display='none'; $('p_name').value='';$('p_price').value='';$('p_sku').value=''; }
 function saveProduct(){
@@ -254,20 +260,23 @@ function saveProduct(){
   products.push({id,name,price,sku}); closeModal(); renderCatalog();
 }
 
+/* ---------------- settings & advance ------------- */
 function applySettings(){ settings.discount = Number($('discount').value)||0; settings.discountType = $('discountType').value; settings.tax = Number($('tax').value)||0; settings.advance = Number($('advanceInput').value)||0; renderPreview(); }
-
 function onAdvanceChange(){ settings.advance = Number($('advanceInput').value)||0; renderPreview(); }
 
-// Local storage helpers
-function loadInvoices(){
-  try{ return JSON.parse(localStorage.getItem('invoices_v1')||'[]'); }catch(e){ return []; }
-}
+/* ---------------- localStorage helpers ------------ */
+function loadInvoices(){ try{ return JSON.parse(localStorage.getItem('invoices_v1')||'[]'); }catch(e){ return []; } }
 function saveInvoices(arr){ localStorage.setItem('invoices_v1', JSON.stringify(arr)); }
+function loadCustomers(){ try{ return JSON.parse(localStorage.getItem('customers_v1')||'{}'); }catch(e){ return {}; } }
+function saveCustomers(obj){ localStorage.setItem('customers_v1', JSON.stringify(obj)); }
 
+/* ---------------- save invoice (local + server) ------ */
 function saveInvoice(){
   const mobile = $('customerMobile').value.trim();
   const name = $('customerName').value.trim();
-  if(!mobile){ if(!confirm('Save without customer mobile? This invoice will not be associated with a customer. Continue?')) return; }
+  if(!mobile){
+    if(!confirm('Save without customer mobile? This invoice will not be associated with a customer. Continue?')) return;
+  }
   const invNo = $('invoiceNo').innerText || ('INV'+Date.now().toString().slice(-8));
   const t = computeTotals();
   const record = {
@@ -279,33 +288,59 @@ function saveInvoice(){
     totals: t
   };
   let arr = loadInvoices();
-  // replace if same invoiceNo
   const existingIndex = arr.findIndex(x=>x.invoiceNo === invNo);
   if(existingIndex>=0) arr[existingIndex] = record; else arr.unshift(record);
   saveInvoices(arr);
-  // also save customer quicklist
+
   if(mobile){
     const customers = loadCustomers();
     customers[mobile] = {name, mobile, lastInvoice: invNo, lastSeen: new Date().toISOString()};
     saveCustomers(customers);
   }
-  alert('Invoice saved locally.');
+
+  // Save to Google Sheet (server) — best-effort, not required
+  saveInvoiceToServer(record).then(resp=>{
+    if(resp && resp.ok){
+      alert('Invoice saved locally and to server (Sheet).');
+    } else {
+      console.warn('Server save failed', resp && resp.error);
+      alert('Invoice saved locally. (Server save failed — check console.)');
+    }
+  }).catch(err=>{
+    console.error('Server save error', err);
+    alert('Invoice saved locally. (Server save failed — check console.)');
+  });
 }
 
-function loadCustomers(){ try{ return JSON.parse(localStorage.getItem('customers_v1')||'{}'); }catch(e){ return {}; } }
-function saveCustomers(obj){ localStorage.setItem('customers_v1', JSON.stringify(obj)); }
+/* --------------- server call: POST to Apps Script ---------- */
+async function saveInvoiceToServer(record){
+  if(!SERVER_URL || SERVER_URL.includes('PUT_YOUR')) return {ok:false,error:'SERVER_URL not configured'};
+  const payload = Object.assign({}, record, { serverSecret: SERVER_SECRET });
+  try{
+    const res = await fetch(SERVER_URL, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    return data;
+  } catch(err){
+    return {ok:false,error:err.message};
+  }
+}
 
+/* ---------------- history (local) ------------------ */
 function openHistory(){ $('historyModal').style.display='flex'; listAllHistory(); }
 function closeHistory(){ $('historyModal').style.display='none'; }
-
-function listAllHistory(){ const arr = loadInvoices(); renderHistoryResults(arr); }
-
-function searchHistory(){ const mobile = $('historyMobile').value.trim(); const inv = $('historyInvoiceNo').value.trim(); const arr = loadInvoices(); let results = arr;
+function listAllHistory(){ renderHistoryResults(loadInvoices()); }
+function searchHistory(){
+  const mobile = $('historyMobile').value.trim();
+  const inv = $('historyInvoiceNo').value.trim();
+  let results = loadInvoices();
   if(mobile) results = results.filter(r=>r.customer && r.customer.mobile && r.customer.mobile.includes(mobile));
   if(inv) results = results.filter(r=>r.invoiceNo && r.invoiceNo.includes(inv));
   renderHistoryResults(results);
 }
-
 function renderHistoryResults(results){
   const el = $('historyResults'); el.innerHTML='';
   if(!results.length){ el.innerHTML = '<div class="small">No invoices found.</div>'; return; }
@@ -315,30 +350,48 @@ function renderHistoryResults(results){
     el.appendChild(d);
   });
 }
-
 function loadInvoice(invNo){ const arr = loadInvoices(); const r = arr.find(x=>x.invoiceNo===invNo); if(!r){ alert('Invoice not found'); return; }
-  // restore
   cart = r.products.map(p=>({id:p.id,name:p.name,price:p.price,qty:p.qty,sku:p.sku}));
   settings.discount = r.settings.discount||0; settings.discountType = r.settings.discountType||'flat'; settings.tax = r.settings.tax||0; settings.advance = r.settings.advance||0;
   $('discount').value = settings.discount; $('discountType').value = settings.discountType; $('tax').value = settings.tax; $('advanceInput').value = settings.advance;
   $('customerName').value = (r.customer && r.customer.name) || ''; $('customerMobile').value = (r.customer && r.customer.mobile) || '';
   $('invoiceNo').innerText = r.invoiceNo; renderCart(); closeHistory(); alert('Invoice loaded into editor.');
 }
-
 function downloadInvoice(invNo){ const arr = loadInvoices(); const r = arr.find(x=>x.invoiceNo===invNo); if(!r) return alert('Not found'); const blob = new Blob([JSON.stringify(r,null,2)],{type:'application/json'}); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `invoice-${invNo}.json`; a.click(); }
-
 function deleteInvoice(invNo){ if(!confirm('Delete invoice '+invNo+'? This cannot be undone.')) return; let arr = loadInvoices(); arr = arr.filter(x=>x.invoiceNo!==invNo); saveInvoices(arr); listAllHistory(); }
 
-function exportInvoice(){
-  const data = {invoiceNo: $('invoiceNo').innerText, date: new Date().toISOString(), customer:{name: $('customerName').value.trim(), mobile: $('customerMobile').value.trim()}, products: cart, settings};
-  const blob = new Blob([JSON.stringify(data, null,2)],{type:'application/json'});
-  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `invoice-${$('invoiceNo').innerText||'untitled'}.json`; a.click();
+/* ---------------- public server fetch ------------------ */
+async function fetchInvoicesFromServer(){
+  if(!SERVER_URL || SERVER_URL.includes('PUT_YOUR')) return [];
+  try{
+    const res = await fetch(SERVER_URL);
+    const data = await res.json();
+    if(data && data.ok) return data.invoices || [];
+    return [];
+  } catch(err){
+    console.error('Fetch invoices error', err);
+    return [];
+  }
+}
+async function showServerHistory(){
+  const invoices = await fetchInvoicesFromServer();
+  if(!invoices.length) return alert('No public invoices or server not configured.');
+  // reuse local render function by mapping server row format to local invoice structure
+  const mapped = invoices.map(r => ({
+    invoiceNo: r.invoiceNo,
+    date: r.date,
+    customer: { name: r.customerName || '', mobile: r.customerMobile || '' },
+    products: (typeof r.productsJSON === 'string') ? JSON.parse(r.productsJSON||'[]') : (r.products || []),
+    settings: { discount: r.discount, discountType: r.discountType, tax: r.tax, advance: r.advance },
+    totals: { subtotal: Number(r.subtotal||0), tax: Number(r.taxAmount||0), total: Number(r.total||0), balance: Number(r.balance||0) }
+  }));
+  renderHistoryResults(mapped);
+  $('historyModal').style.display = 'flex';
 }
 
+/* ---------------- print ---------------- */
 function printInvoice(){
-  // Print only the invoicePreview area with styling
   const content = document.getElementById('invoicePreview').outerHTML;
-  // Gather minimal styles to make the printed invoice look like the preview
   const styles = `
     <style>
       @media print { @page{ size: auto; margin: 10mm; } }
@@ -348,28 +401,21 @@ function printInvoice(){
       .small{font-size:13px;color:#6b7280}
       .row{display:flex;gap:8px}
       .right{text-align:right}
-      /* Ensure table-like spacing for line items */
       #lineItems{margin-top:8px}
       #lineItems > div{display:flex;justify-content:space-between;padding:6px 0}
-      .no-print{display:none}
     </style>
   `;
-
   const win = window.open('','_blank');
   const title = document.getElementById('invoiceNo').innerText || 'Invoice';
   win.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${title}</title>${styles}</head><body>${content}</body></html>`);
   win.document.close();
-  // Wait a tick to allow rendering, then print
   win.focus();
-  win.onload = function(){
-    setTimeout(()=>{ win.print(); }, 100);
-  };
+  win.onload = function(){ setTimeout(()=>{ win.print(); }, 100); };
 }
 
+/* ---------------- init ---------------- */
 function randomizeInvoice(){ const n = 'INV'+Date.now().toString().slice(-8); $('invoiceNo').innerText=n; $('previewInv').innerText=n; }
-
 function init(){ renderCatalog(); renderCart(); randomizeInvoice(); $('search').addEventListener('input', e=>renderCatalog(e.target.value)); $('advanceInput').addEventListener('input', onAdvanceChange); }
-
 init();
 </script>
 </body>
